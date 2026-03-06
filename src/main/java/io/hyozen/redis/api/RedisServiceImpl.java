@@ -55,16 +55,18 @@ public class RedisServiceImpl implements RedisService {
 
     @Override
     public void publish(String channel, String message) {
-        if (connection != null) {
-            connection.publish(channel, message);
+        if (!isConnected()) {
+            throw new IllegalStateException("Not connected");
         }
+        connection.publish(channel, message);
     }
 
     @Override
     public void registerChannelHandler(RedisChannelRegistrar registrar) {
-        if (registry != null) {
-            registry.register(registrar);
+        if (!isConnected()) {
+            throw new IllegalStateException("Not connected");
         }
+        registry.register(registrar);
     }
 
     @Override

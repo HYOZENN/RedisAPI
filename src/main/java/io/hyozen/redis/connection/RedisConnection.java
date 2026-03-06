@@ -11,14 +11,22 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class RedisConnection {
 
+    private static final int SHUTDOWN_TIMEOUT_SECONDS = 10;
+
     private final RedisConfig config;
     private final Logger logger;
-    private JedisPool jedisPool;
+    private volatile JedisPool jedisPool;
     private final List<ExecutorService> executorServices = new ArrayList<>();
-    private final ExecutorService publisherService = Executors.newSingleThreadExecutor();
+    private final ExecutorService publisherService = Executors.newSingleThreadExecutor(
+            r -> {
+                Thread t = new Thread(r, "redisapi-publisher");
+                t.setDaemon(false);
+                return t;
+            });
 
     public RedisConnection(RedisConfig config, Logger logger) {
         this.config = config;
@@ -54,6 +62,26 @@ public class RedisConnection {
     public void shutdown() {
         executorServices.forEach(ExecutorService::shutdown);
         publisherService.shutdown();
+        for (ExecutorService es : executorServices) {
+            try {
+                if (!es.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                    es.shutdownNow();
+                    es.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                es.shutdownNow();
+            }
+        }
+        try {
+            if (!publisherService.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                publisherService.shutdownNow();
+                publisherService.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            publisherService.shutdownNow();
+        }
         disconnect();
     }
 
@@ -74,7 +102,12 @@ public class RedisConnection {
     }
 
     public void psubscribe(JedisPubSub sub, String... patterns) {
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        ExecutorService executorService = Executors.newSingleThreadExecutor(
+                r -> {
+                    Thread t = new Thread(r, "redisapi-subscriber");
+                    t.setDaemon(false);
+                    return t;
+                });
         executorServices.add(executorService);
         executorService.submit(() -> {
             while (!Thread.currentThread().isInterrupted()) {
@@ -94,7 +127,12 @@ public class RedisConnection {
 
     public void publish(String channel, String message) {
         publisherService.submit(() -> {
-            try (Jedis jedis = jedisPool.getResource()) {
+            JedisPool pool = jedisPool;
+            if (pool == null) {
+                logger.debug("Publish skipped: not connected");
+                return;
+            }
+            try (Jedis jedis = pool.getResource()) {
                 if (config.getPassword() != null && !config.getPassword().isEmpty()) {
                     jedis.auth(config.getPassword());
                 }
@@ -105,8 +143,16 @@ public class RedisConnection {
         });
     }
 
+    /**
+     * Returns a pooled Jedis instance. The caller must close it (e.g. try-with-resources).
+     * @throws IllegalStateException if not connected
+     */
     public Jedis getJedis() {
-        Jedis jedis = jedisPool.getResource();
+        JedisPool pool = jedisPool;
+        if (pool == null) {
+            throw new IllegalStateException("Not connected");
+        }
+        Jedis jedis = pool.getResource();
         if (config.getPassword() != null && !config.getPassword().isEmpty()) {
             jedis.auth(config.getPassword());
         }

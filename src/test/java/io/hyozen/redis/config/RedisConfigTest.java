@@ -45,4 +45,22 @@ class RedisConfigTest {
                 .build();
         assertEquals(RedisConfig.DEFAULT_PATTERNS, config.getSubscribePatterns());
     }
+
+    @Test
+    void buildThrowsWhenHostBlank() {
+        assertThrows(IllegalArgumentException.class, () -> RedisConfig.builder().host("").build());
+        assertThrows(IllegalArgumentException.class, () -> RedisConfig.builder().host("   ").build());
+    }
+
+    @Test
+    void buildThrowsWhenPortInvalid() {
+        assertThrows(IllegalArgumentException.class, () -> RedisConfig.builder().port(0).build());
+        assertThrows(IllegalArgumentException.class, () -> RedisConfig.builder().port(65536).build());
+    }
+
+    @Test
+    void buildThrowsWhenTimeoutOrPoolSizeInvalid() {
+        assertThrows(IllegalArgumentException.class, () -> RedisConfig.builder().timeoutMs(0).build());
+        assertThrows(IllegalArgumentException.class, () -> RedisConfig.builder().poolSize(0).build());
+    }
 }

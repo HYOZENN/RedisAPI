@@ -3,6 +3,7 @@ package io.hyozen.redis.cache;
 import io.hyozen.redis.connection.RedisConnection;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.params.ScanParams;
+import redis.clients.jedis.params.SetParams;
 import redis.clients.jedis.resps.ScanResult;
 
 import java.util.Optional;
@@ -38,10 +39,11 @@ public class RedisCacheImpl implements RedisCache {
     public void set(String key, String value, Long ttlSeconds) {
         try (Jedis jedis = connection.getJedis()) {
             String full = fullKey(key);
-            jedis.set(full, value);
             long ttl = ttlSeconds != null && ttlSeconds > 0 ? ttlSeconds : (defaultTtlSeconds != null ? defaultTtlSeconds : 0);
             if (ttl > 0) {
-                jedis.expire(full, (int) ttl);
+                jedis.set(full, value, SetParams.setParams().ex((int) ttl));
+            } else {
+                jedis.set(full, value);
             }
         }
     }

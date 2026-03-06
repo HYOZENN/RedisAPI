@@ -3,6 +3,10 @@ package io.hyozen.redis.config;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Immutable Redis connection and pub/sub configuration. Use {@link #builder()} to build.
+ * Validation runs on {@link Builder#build()}: host non-blank, port 1-65535, timeoutMs and poolSize positive.
+ */
 public final class RedisConfig {
 
     public static final String DEFAULT_HOST = "localhost";
@@ -30,6 +34,9 @@ public final class RedisConfig {
                 : DEFAULT_PATTERNS;
     }
 
+    /**
+     * Returns a new builder with default values (localhost:6379, messaging:* pattern).
+     */
     public static Builder builder() {
         return new Builder();
     }
@@ -62,6 +69,10 @@ public final class RedisConfig {
         return subscribePatterns.toArray(new String[0]);
     }
 
+    /**
+     * Builder for {@link RedisConfig}. All fields have defaults; {@link #build()} validates and may throw
+     * {@link IllegalArgumentException} if host is blank, port is out of range, or timeout/pool size are not positive.
+     */
     public static final class Builder {
         private String host = DEFAULT_HOST;
         private int port = DEFAULT_PORT;
@@ -100,7 +111,23 @@ public final class RedisConfig {
             return this;
         }
 
+        /**
+         * Builds the config. Throws IllegalArgumentException if host is null/blank, port not in 1-65535,
+         * timeoutMs <= 0, or poolSize <= 0.
+         */
         public RedisConfig build() {
+            if (host == null || host.isBlank()) {
+                throw new IllegalArgumentException("host must not be null or blank");
+            }
+            if (port < 1 || port > 65535) {
+                throw new IllegalArgumentException("port must be between 1 and 65535, got: " + port);
+            }
+            if (timeoutMs <= 0) {
+                throw new IllegalArgumentException("timeoutMs must be positive, got: " + timeoutMs);
+            }
+            if (poolSize <= 0) {
+                throw new IllegalArgumentException("poolSize must be positive, got: " + poolSize);
+            }
             return new RedisConfig(this);
         }
     }
