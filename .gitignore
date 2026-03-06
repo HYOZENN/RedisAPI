@@ -32,5 +32,6 @@ local.properties
 libs/
 **/libs/
 
-# Ignore all JAR files
+# Ignore all JAR files (exception: Gradle wrapper jar below)
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
