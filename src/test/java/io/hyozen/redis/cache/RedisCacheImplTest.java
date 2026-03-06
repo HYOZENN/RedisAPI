@@ -53,7 +53,7 @@ class RedisCacheImplTest {
         doAnswer(inv -> {
             storage.put(inv.getArgument(0), inv.getArgument(1));
             return null;
-        }).when(jedis).set(anyString(), anyString(), any(redis.clients.jedis.params.SetParams.class));
+        }).when(jedis).set(anyString(), anyString(), any(SetParams.class));
 
         doAnswer(inv -> {
             storage.remove(inv.getArgument(0));
@@ -88,7 +88,7 @@ class RedisCacheImplTest {
     void setWithTtlUsesSetParams() {
         cache.set("k2", "v2", 120L);
         assertEquals(Optional.of("v2"), cache.get("k2"));
-        verify(jedis).set(eq("ns:k2"), eq("v2"), any(redis.clients.jedis.params.SetParams.class));
+        verify(jedis).set(eq("ns:k2"), eq("v2"), any(SetParams.class));
     }
 
     @Test
