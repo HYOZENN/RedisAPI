@@ -1,0 +1,29 @@
+plugins {
+    id("java")
+}
+
+group = "io.hyozen"
+version = "1.0-SNAPSHOT"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("redis.clients:jedis:5.2.0-beta1")
+    implementation("org.slf4j:slf4j-api:2.0.9")
+    implementation("com.google.code.gson:gson:2.10.1")
+    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers:1.19.3")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform {
+        if (!project.hasProperty("integration")) {
+            excludeTags("integration")
+        }
+    }
+}
