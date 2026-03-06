@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class RedisConnection {
 
@@ -21,6 +22,7 @@ public class RedisConnection {
     private final Logger logger;
     private volatile JedisPool jedisPool;
     private final List<ExecutorService> executorServices = new ArrayList<>();
+    private final AtomicInteger subscriberIndex = new AtomicInteger(0);
     private final ExecutorService publisherService = Executors.newSingleThreadExecutor(
             r -> {
                 Thread t = new Thread(r, "redisapi-publisher");
@@ -102,9 +104,10 @@ public class RedisConnection {
     }
 
     public void psubscribe(JedisPubSub sub, String... patterns) {
+        int index = subscriberIndex.getAndIncrement();
         ExecutorService executorService = Executors.newSingleThreadExecutor(
                 r -> {
-                    Thread t = new Thread(r, "redisapi-subscriber");
+                    Thread t = new Thread(r, "redisapi-subscriber-" + index);
                     t.setDaemon(false);
                     return t;
                 });
